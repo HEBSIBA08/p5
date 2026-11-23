@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Internship Portal — Capstone</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #0f172a;
+      --muted: #475569;
+      --border: #cbd5e1;
+      --primary: #1d4ed8;
+      --primary-hover: #1e40af;
+      --danger-bg: #fef2f2;
+      --danger-text: #991b1b;
+      --ok-bg: #f0fdf4;
+      --ok-text: #166534;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 1.25rem;
+    }
+
+    header {
+      margin-bottom: 1.5rem;
+    }
+
+    header p {
+      color: var(--muted);
+      margin: 0.25rem 0 0;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .controls input {
+      flex: 1 1 240px;
+      padding: 0.65rem 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 1rem;
+    }
+
+    .status {
+      padding: 0.85rem 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      font-weight: 500;
+    }
+    .status.loading { background: #eff6ff; color: var(--primary); border: 1px solid #bfdbfe; }
+    .status.error { background: var(--danger-bg); color: var(--danger-text); border: 1px solid #fecaca; }
+    .status.success { background: var(--ok-bg); color: var(--ok-text); border: 1px solid #bbf7d0; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 0.85rem;
+      margin-bottom: 2rem;
+    }
+
+    @media (min-width: 640px) {
+      .grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem;
+    }
+
+    .card h3 { margin: 0 0 0.35rem; font-size: 1.05rem; }
+    .meta { color: var(--muted); font-size: 0.92rem; }
+
+    .form-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem;
+    }
+
+    .field { margin-bottom: 1rem; }
+    label { display: block; font-weight: 600; margin-bottom: 0.35rem; }
+    input, select, textarea {
+      width: 100%;
+      padding: 0.65rem 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 1rem;
+      font-family: inherit;
+    }
+
+    :focus-visible {
+      outline: 3px solid var(--primary);
+      outline-offset: 2px;
+    }
+
+    button {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 0.7rem 1.15rem;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:hover { background: var(--primary-hover); }
+    button:disabled { opacity: 0.65; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+  <main class="container">
+    <header>
+      <h1>Internship Portal</h1>
+      <p>Browse open roles and submit a validated application.</p>
+    </header>
+
+    <section aria-labelledby="listings-heading">
+      <h2 id="listings-heading">Available Internships</h2>
+
+      <div class="controls">
+        <label for="search-input" class="meta" style="align-self:center; margin:0;">Filter:</label>
+        <input id="search-input" type="search" placeholder="Search by role, company, or location..." />
+        <button id="retry-btn" type="button" style="display:none;">Retry Loading</button>
+      </div>
+
+      <div id="list-status" class="status loading" role="status" aria-live="polite">
+        Loading internships...
+      </div>
+
+      <div id="listings-grid" class="grid"></div>
+    </section>
+
+    <section class="form-card" aria-labelledby="apply-heading">
+      <h2 id="apply-heading">Submit an Application</h2>
+      <div id="form-status" class="status" role="status" aria-live="polite" style="display:none;"></div>
+
+      <form id="apply-form" novalidate>
+        <div class="field">
+          <label for="internship_id">Internship Role *</label>
+          <select id="internship_id" name="internship_id" required>
+            <option value="">Select an internship</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="applicant_name">Full Name *</label>
+          <input id="applicant_name" name="applicant_name" type="text" required autocomplete="name" />
+        </div>
+
+        <div class="field">
+          <label for="email">Email Address *</label>
+          <input id="email" name="email" type="email" required autocomplete="email" />
+        </div>
+
+        <div class="field">
+          <label for="cover_note">Cover Note (minimum 10 characters) *</label>
+          <textarea id="cover_note" name="cover_note" rows="3" required></textarea>
+        </div>
+
+        <button id="submit-btn" type="submit">Submit Application</button>
+      </form>
+    </section>
+  </main>
+
+  <script>
+    const API_BASE = "/api";
+    let allInternships = [];
+
+    const listStatus = document.getElementById("list-status");
+    const retryBtn = document.getElementById("retry-btn");
+    const gridEl = document.getElementById("listings-grid");
+    const searchInput = document.getElementById("search-input");
+    const selectEl = document.getElementById("internship_id");
+    const formEl = document.getElementById("apply-form");
+    const formStatus = document.getElementById("form-status");
+    const submitBtn = document.getElementById("submit-btn");
+
+    function escapeHtml(str) {
+      return String(str ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function renderCards(items) {
+      gridEl.innerHTML = "";
+      if (!items.length) {
+        gridEl.innerHTML = `<p class="meta">No matching internships found.</p>`;
+        return;
+      }
+
+      items.forEach((item) => {
+        const card = document.createElement("article");
+        card.className = "card";
+        card.innerHTML = `
+          <h3>${escapeHtml(item.title)}</h3>
+          <div class="meta"><strong>${escapeHtml(item.company)}</strong> · ${escapeHtml(item.location)} (${escapeHtml(item.mode)})</div>
+          <div class="meta">Stipend: ${escapeHtml(item.stipend)}</div>
+        `;
+        gridEl.appendChild(card);
+      });
+    }
+
+    function populateDropdown(items) {
+      selectEl.innerHTML = `<option value="">Select an internship</option>`;
+      items.forEach((item) => {
+        const opt = document.createElement("option");
+        opt.value = item.id;
+        opt.textContent = `${item.title} — ${item.company}`;
+        selectEl.appendChild(opt);
+      });
+    }
+
+    async function loadInternships() {
+      listStatus.className = "status loading";
+      listStatus.style.display = "block";
+      listStatus.textContent = "Loading internships...";
+      retryBtn.style.display = "none";
+
+      try {
+        const res = await fetch(`${API_BASE}/internships?page=1&limit=50`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const payload = await res.json();
+        allInternships = payload.data || [];
+
+        listStatus.style.display = "none";
+        renderCards(allInternships);
+        populateDropdown(allInternships);
+      } catch (err) {
+        listStatus.className = "status error";
+        listStatus.textContent = `Could not load internships (${err.message}). Please retry.`;
+        retryBtn.style.display = "inline-block";
+      }
+    }
+
+    searchInput.addEventListener("input", () => {
+      const q = searchInput.value.trim().toLowerCase();
+      const filtered = allInternships.filter((item) =>
+        [item.title, item.company, item.location, item.mode]
+          .some((val) => String(val || "").toLowerCase().includes(q))
+      );
+      renderCards(filtered);
+    });
+
+    retryBtn.addEventListener("click", loadInternships);
+
+    function showFormStatus(type, messages) {
+      formStatus.className = `status ${type}`;
+      formStatus.style.display = "block";
+      formStatus.innerHTML = Array.isArray(messages)
+        ? `<ul style="margin:0; padding-left:1.2rem;">${messages.map((m) => `<li>${escapeHtml(m)}</li>`).join("")}</ul>`
+        : escapeHtml(messages);
+    }
+
+    formEl.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const internship_id = selectEl.value;
+      const applicant_name = document.getElementById("applicant_name").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const cover_note = document.getElementById("cover_note").value.trim();
+
+      const clientErrors = [];
+      if (!internship_id) clientErrors.push("Please select an internship role.");
+      if (applicant_name.length < 2) clientErrors.push("Full name must be at least 2 characters.");
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) clientErrors.push("Please enter a valid email address.");
+      if (cover_note.length < 10) clientErrors.push("Cover note must be at least 10 characters.");
+
+      if (clientErrors.length > 0) {
+        showFormStatus("error", clientErrors);
+        return;
+      }
+
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Submitting...";
+
+      try {
+        const res = await fetch(`${API_BASE}/applications`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ internship_id, applicant_name, email, cover_note })
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          showFormStatus("error", data.errors || [data.error || "Unable to submit application."]);
+        } else {
+          showFormStatus("success", `Application submitted successfully! Reference #${data.applicationId}`);
+          formEl.reset();
+        }
+      } catch (err) {
+        showFormStatus("error", `Network error: ${err.message}`);
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Submit Application";
+      }
+    });
+
+    loadInternships();
+  </script>
+</body>
+</html>

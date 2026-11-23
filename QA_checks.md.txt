@@ -1,0 +1,9 @@
+**`QA_CHECKS.md`**
+```markdown
+# Quality, Accessibility, Performance & Regression Checks
+
+- **Accessibility:** Semantic landmarks (`<main>`, `<section>`, `<article>`), explicit `<label>` elements, keyboard focus rings (`:focus-visible`), and `aria-live="polite"` status updates.
+- **Mobile & Responsive UX:** Single-column layout on mobile viewports, two-column grid on wider screens, and touch-friendly input sizing.
+- **Performance:** Pagination support (`page`, `limit`), lightweight static assets, and client-side filtering without extra network calls.
+- **Security:** Helmet headers, API rate limiting, parameterized SQL queries, and escaped DOM output.
+- **Regression:** Verified `GET /health`, `GET /api/internships`, failure/retry banner behavior, invalid form rejection (`400`), and valid application creation (`201`).
